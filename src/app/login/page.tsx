@@ -21,8 +21,15 @@ const Login = () => {
     setError(null);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push("/");
+      const result = await signInWithEmailAndPassword(auth, email, password);
+
+      console.log("🚀 ~ page.tsx:26 ~ handleLogin ~ result:", result);
+
+      const idToken = await result?.user?.getIdToken();
+
+      console.log("🚀 ~ page.tsx:27 ~ handleLogin ~ idToken:", idToken);
+
+      // router.push("/");
     } catch (error: any) {
       console.error("Login error:", error.message);
       if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password") {

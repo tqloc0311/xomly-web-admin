@@ -12,8 +12,6 @@ const clientCredentials = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-console.log("🚀 ~ index.ts:15 ~ clientCredentials.process.env.NEXT_PUBLIC_FIREBASE_API_KEY:", clientCredentials);
-
 // Initialize Firebase
 const app = getApps().length > 0 ? getApp() : initializeApp(clientCredentials);
 const auth = getAuth(app);
