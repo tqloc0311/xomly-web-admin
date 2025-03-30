@@ -7,23 +7,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToastHelpers } from "@/presentation/hooks/use-toast-helpers";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const { login, isLoading } = useAuth();
   const router = useRouter();
+  const { showSuccess } = useToastHelpers();
+  const { showError } = useToastHelpers();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
 
     try {
       await login({ email, password });
-      //   router.push("/");
+      showSuccess("Login successful");
+      router.push("/");
     } catch (err) {
-      setError("Invalid email or password");
+      showError("Login failed", (err as Error).message);
     }
   };
 
@@ -56,7 +58,6 @@ export function LoginForm() {
               required
             />
           </div>
-          {error && <div className="text-sm text-red-500">{error}</div>}
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? "Logging in..." : "Login"}
           </Button>

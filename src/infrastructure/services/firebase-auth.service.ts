@@ -5,7 +5,7 @@ import {
   User as FirebaseUser,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase-client";
-import { User, AuthCredentials } from "@/domain/entities/user.entity";
+import { User } from "@/domain/entities/user.entity";
 import { AuthError, AuthErrorCodes } from "@/domain/entities/error.entity";
 
 export class FirebaseAuthService {
