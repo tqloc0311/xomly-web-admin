@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useContext, createContext } from "react";
-import { User, AuthCredentials } from "@/domain/entities/user.entity";
+import { User } from "@/domain/entities/user.entity";
 import { AuthUseCase } from "@/domain/use-cases/auth.use-case";
 import { AuthRepositoryImpl } from "@/infrastructure/repositories/auth.repository";
-import { AuthTokens } from "@/domain/entities/auth.entity";
+import { AuthTokens, AuthCredentials } from "@/domain/entities/auth.entity";
 
 interface AuthContextType {
   currentUser: User | null;
@@ -42,9 +42,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       const newTokens = await authUseCase.login(credentials);
 
-      console.log("🚀 ~ use-auth.tsx:45 ~ login ~ newTokens:", newTokens);
-
-      setTokens(newTokens);
+      setTokens(newTokens.credentials);
+      setCurrentUser(newTokens.user);
     } finally {
       setIsLoading(false);
     }

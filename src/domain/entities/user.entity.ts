@@ -1,11 +1,8 @@
 export interface User {
-  id: string;
+  uid: string;
   email: string;
+  emailVerified: boolean;
+  disabled?: boolean;
   displayName?: string;
   photoURL?: string;
-}
-
-export interface AuthCredentials {
-  email: string;
-  password: string;
 }

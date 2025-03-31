@@ -3,6 +3,7 @@ import {
   signOut,
   onAuthStateChanged as firebaseOnAuthStateChanged,
   User as FirebaseUser,
+  signInWithCustomToken,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase-client";
 import { User } from "@/domain/entities/user.entity";
@@ -27,10 +28,11 @@ export class FirebaseAuthService {
 
   private mapFirebaseUser(firebaseUser: FirebaseUser): User {
     return {
-      id: firebaseUser.uid,
+      uid: firebaseUser.uid,
       email: firebaseUser.email || "",
-      displayName: firebaseUser.displayName || undefined,
-      photoURL: firebaseUser.photoURL || undefined,
+      emailVerified: firebaseUser.emailVerified,
+      displayName: firebaseUser.displayName || "",
+      photoURL: firebaseUser.photoURL || "",
     };
   }
 
@@ -38,6 +40,7 @@ export class FirebaseAuthService {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const idToken = await userCredential.user.getIdToken();
+
       return {
         user: this.mapFirebaseUser(userCredential.user),
         idToken,
@@ -64,5 +67,19 @@ export class FirebaseAuthService {
     return firebaseOnAuthStateChanged(auth, (firebaseUser) => {
       callback(firebaseUser ? this.mapFirebaseUser(firebaseUser) : null);
     });
+  }
+
+  async signInWithCustomToken(customToken: string): Promise<{ user: User; idToken: string }> {
+    try {
+      const userCredential = await signInWithCustomToken(auth, customToken);
+      const idToken = await userCredential.user.getIdToken();
+
+      return {
+        user: this.mapFirebaseUser(userCredential.user),
+        idToken,
+      };
+    } catch (error: any) {
+      this.handleFirebaseError(error);
+    }
   }
 }

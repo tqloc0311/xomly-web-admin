@@ -1,12 +1,16 @@
 import { AuthRepository } from "../repositories/auth.repository";
-import { User, AuthCredentials } from "../entities/user.entity";
-import { AuthTokens } from "../entities/auth.entity";
+import { User } from "../entities/user.entity";
+import { AuthTokens, AuthCredentials } from "../entities/auth.entity";
 
 export class AuthUseCase {
   constructor(private readonly authRepository: AuthRepository) {}
 
-  async login(credentials: AuthCredentials): Promise<AuthTokens> {
+  async login(credentials: AuthCredentials): Promise<{ credentials: AuthTokens; user: User }> {
     return this.authRepository.login(credentials);
+  }
+
+  async loginWithCustomToken(customToken: string): Promise<{ credentials: AuthTokens; user: User }> {
+    return this.authRepository.loginWithCustomToken(customToken);
   }
 
   async logout(): Promise<void> {
@@ -31,5 +35,17 @@ export class AuthUseCase {
 
   clearStoredTokens(): void {
     this.authRepository.clearStoredTokens();
+  }
+
+  getStoredUser(): User | null {
+    return this.authRepository.getStoredUser();
+  }
+
+  setStoredUser(user: User): void {
+    this.authRepository.setStoredUser(user);
+  }
+
+  clearStoredUser(): void {
+    this.authRepository.clearStoredUser();
   }
 }

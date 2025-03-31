@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { AuthRepositoryImpl } from "@/infrastructure/repositories/auth.repository";
+import { AuthUseCase } from "./domain/use-cases/auth.use-case";
 
 export async function middleware(request: NextRequest) {
   const tokens = request.cookies.get("auth_tokens");
@@ -14,6 +15,24 @@ export async function middleware(request: NextRequest) {
   // Skip middleware for API routes and static files
   if (isApiRoute || isStaticFile) {
     return NextResponse.next();
+  }
+
+  // Handle token from URL parameter
+  const tokenFromUrl = request.nextUrl.searchParams.get("token");
+  if (tokenFromUrl) {
+    try {
+      const authRepository = new AuthRepositoryImpl();
+      const authUseCase = new AuthUseCase(authRepository);
+      await authUseCase.loginWithCustomToken(tokenFromUrl);
+
+      const mainUrl = new URL("/", request.url);
+      return NextResponse.redirect(mainUrl);
+    } catch (error) {
+      console.error("Failed to login with custom token:", error);
+      // If login fails, redirect to login page
+      const loginUrl = new URL("/login", request.url);
+      return NextResponse.redirect(loginUrl);
+    }
   }
 
   // If user is not logged in and trying to access protected routes

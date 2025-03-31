@@ -10,7 +10,8 @@ import { useToast } from "@/presentation/hooks/use-toast";
 import { AuthError, AuthErrorCodes } from "@/domain/entities/error.entity";
 
 function Home() {
-  const { logout } = useAuth();
+  const { logout, currentUser } = useAuth();
+
   const router = useRouter();
   const { toast } = useToast();
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
@@ -80,7 +81,10 @@ function Home() {
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Xomly Admin Dashboard</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Xomly Admin Dashboard</h1>
+          {currentUser?.displayName && <p className="text-sm text-gray-500">Welcome, {currentUser.displayName}</p>}
+        </div>
         <Button variant="outline" onClick={() => setIsLogoutDialogOpen(true)} disabled={isLoggingOut}>
           {isLoggingOut ? "Logging out..." : "Logout"}
         </Button>

@@ -1,12 +1,13 @@
 import { AuthRepository } from "@/domain/repositories/auth.repository";
-import { User, AuthCredentials } from "@/domain/entities/user.entity";
-import { AuthTokens } from "@/domain/entities/auth.entity";
+import { User } from "@/domain/entities/user.entity";
+import { AuthTokens, AuthCredentials } from "@/domain/entities/auth.entity";
 import { AuthService } from "@/infrastructure/services/auth.service";
 import { FirebaseAuthService } from "@/infrastructure/services/firebase-auth.service";
 import { AuthError, AuthErrorCodes } from "@/domain/entities/error.entity";
 import Cookies from "js-cookie";
 
 const TOKENS_COOKIE_KEY = "auth_tokens";
+const USER_COOKIE_KEY = "auth_user";
 
 export class AuthRepositoryImpl implements AuthRepository {
   private authService: AuthService;
@@ -17,7 +18,7 @@ export class AuthRepositoryImpl implements AuthRepository {
     this.firebaseAuthService = new FirebaseAuthService();
   }
 
-  async login(credentials: AuthCredentials): Promise<AuthTokens> {
+  async login(credentials: AuthCredentials): Promise<{ credentials: AuthTokens; user: User }> {
     try {
       const { idToken } = await this.firebaseAuthService.signInWithEmailAndPassword(
         credentials.email,
@@ -25,7 +26,8 @@ export class AuthRepositoryImpl implements AuthRepository {
       );
 
       const serverResponse = await this.authService.loginWithIdToken(idToken);
-      this.setStoredTokens(serverResponse);
+      this.setStoredTokens(serverResponse.credentials);
+      this.setStoredUser(serverResponse.user);
       return serverResponse;
     } catch (error) {
       if (error instanceof AuthError) {
@@ -35,10 +37,29 @@ export class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  async loginWithCustomToken(customToken: string): Promise<{ credentials: AuthTokens; user: User }> {
+    try {
+      const { idToken } = await this.firebaseAuthService.signInWithCustomToken(customToken);
+
+      const serverResponse = await this.authService.loginWithIdToken(idToken);
+
+      // TODO: this doesn't work
+      this.setStoredTokens(serverResponse.credentials);
+      this.setStoredUser(serverResponse.user);
+      return serverResponse;
+    } catch (error) {
+      if (error instanceof AuthError) {
+        throw error;
+      }
+      throw new AuthError("Failed to login with custom token", AuthErrorCodes.UNKNOWN_ERROR);
+    }
+  }
+
   async logout(): Promise<void> {
     try {
       await this.firebaseAuthService.signOut();
       this.clearStoredTokens();
+      this.clearStoredUser();
     } catch (error) {
       if (error instanceof AuthError) {
         throw error;
@@ -65,6 +86,8 @@ export class AuthRepositoryImpl implements AuthRepository {
   }
 
   setStoredTokens(tokens: AuthTokens): void {
+    console.log("🚀 ~ auth.repository.ts:89 ~ AuthRepositoryImpl ~ setStoredTokens ~ tokens:", tokens);
+
     try {
       Cookies.set(TOKENS_COOKIE_KEY, JSON.stringify(tokens), {
         expires: 7, // Token expires in 7 days
@@ -84,16 +107,46 @@ export class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
-  async refreshTokens(): Promise<AuthTokens | null> {
+  getStoredUser(): User | null {
+    try {
+      const user = Cookies.get(USER_COOKIE_KEY);
+      return user ? JSON.parse(user) : null;
+    } catch (error) {
+      throw new AuthError("Failed to retrieve stored user", AuthErrorCodes.TOKEN_ERROR);
+    }
+  }
+
+  setStoredUser(user: User): void {
+    try {
+      Cookies.set(USER_COOKIE_KEY, JSON.stringify(user), {
+        expires: 7, // User data expires in 7 days
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+      });
+    } catch (error) {
+      throw new AuthError("Failed to store user data", AuthErrorCodes.TOKEN_ERROR);
+    }
+  }
+
+  clearStoredUser(): void {
+    try {
+      Cookies.remove(USER_COOKIE_KEY);
+    } catch (error) {
+      throw new AuthError("Failed to clear stored user data", AuthErrorCodes.TOKEN_ERROR);
+    }
+  }
+
+  async refreshTokens(): Promise<{ credentials: AuthTokens; user: User } | null> {
     try {
       const tokens = this.getStoredTokens();
       if (!tokens?.refreshToken) {
         return null;
       }
 
-      const newTokens = await this.authService.refreshToken(tokens.refreshToken);
-      this.setStoredTokens(newTokens);
-      return newTokens;
+      const serverResponse = await this.authService.refreshToken(tokens.refreshToken);
+      this.setStoredTokens(serverResponse.credentials);
+      this.setStoredUser(serverResponse.user);
+      return serverResponse;
     } catch (error) {
       if (error instanceof AuthError) {
         throw error;
