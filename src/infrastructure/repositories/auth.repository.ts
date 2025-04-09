@@ -4,18 +4,17 @@ import { AuthTokens, AuthCredentials } from "@/domain/entities/auth.entity";
 import { AuthService } from "@/infrastructure/services/auth.service";
 import { FirebaseAuthService } from "@/infrastructure/services/firebase-auth.service";
 import { AuthError, AuthErrorCodes } from "@/domain/entities/error.entity";
-import Cookies from "js-cookie";
-
-const TOKENS_COOKIE_KEY = "auth_tokens";
-const USER_COOKIE_KEY = "auth_user";
+import { CookieService } from "@/infrastructure/services/cookie.service";
 
 export class AuthRepositoryImpl implements AuthRepository {
   private authService: AuthService;
   private firebaseAuthService: FirebaseAuthService;
+  private cookieService: CookieService;
 
   constructor() {
     this.authService = new AuthService();
     this.firebaseAuthService = new FirebaseAuthService();
+    this.cookieService = CookieService.getInstance();
   }
 
   async login(credentials: AuthCredentials): Promise<{ credentials: AuthTokens; user: User }> {
@@ -40,10 +39,10 @@ export class AuthRepositoryImpl implements AuthRepository {
   async loginWithCustomToken(customToken: string): Promise<{ credentials: AuthTokens; user: User }> {
     try {
       const { idToken } = await this.firebaseAuthService.signInWithCustomToken(customToken);
-
       const serverResponse = await this.authService.loginWithIdToken(idToken);
 
-      // TODO: this doesn't work
+      // Cookies are set in the middleware for server-side operations
+      // For client-side operations, we still set them here
       this.setStoredTokens(serverResponse.credentials);
       this.setStoredUser(serverResponse.user);
       return serverResponse;
@@ -77,63 +76,27 @@ export class AuthRepositoryImpl implements AuthRepository {
   }
 
   getStoredTokens(): AuthTokens | null {
-    try {
-      const tokens = Cookies.get(TOKENS_COOKIE_KEY);
-      return tokens ? JSON.parse(tokens) : null;
-    } catch (error) {
-      throw new AuthError("Failed to retrieve stored tokens", AuthErrorCodes.TOKEN_ERROR);
-    }
+    return this.cookieService.getStoredTokens();
   }
 
   setStoredTokens(tokens: AuthTokens): void {
-    console.log("🚀 ~ auth.repository.ts:89 ~ AuthRepositoryImpl ~ setStoredTokens ~ tokens:", tokens);
-
-    try {
-      Cookies.set(TOKENS_COOKIE_KEY, JSON.stringify(tokens), {
-        expires: 7, // Token expires in 7 days
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-      });
-    } catch (error) {
-      throw new AuthError("Failed to store tokens", AuthErrorCodes.TOKEN_ERROR);
-    }
+    this.cookieService.setStoredTokens(tokens);
   }
 
   clearStoredTokens(): void {
-    try {
-      Cookies.remove(TOKENS_COOKIE_KEY);
-    } catch (error) {
-      throw new AuthError("Failed to clear stored tokens", AuthErrorCodes.TOKEN_ERROR);
-    }
+    this.cookieService.clearStoredTokens();
   }
 
   getStoredUser(): User | null {
-    try {
-      const user = Cookies.get(USER_COOKIE_KEY);
-      return user ? JSON.parse(user) : null;
-    } catch (error) {
-      throw new AuthError("Failed to retrieve stored user", AuthErrorCodes.TOKEN_ERROR);
-    }
+    return this.cookieService.getStoredUser();
   }
 
   setStoredUser(user: User): void {
-    try {
-      Cookies.set(USER_COOKIE_KEY, JSON.stringify(user), {
-        expires: 7, // User data expires in 7 days
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-      });
-    } catch (error) {
-      throw new AuthError("Failed to store user data", AuthErrorCodes.TOKEN_ERROR);
-    }
+    this.cookieService.setStoredUser(user);
   }
 
   clearStoredUser(): void {
-    try {
-      Cookies.remove(USER_COOKIE_KEY);
-    } catch (error) {
-      throw new AuthError("Failed to clear stored user data", AuthErrorCodes.TOKEN_ERROR);
-    }
+    this.cookieService.clearStoredUser();
   }
 
   async refreshTokens(): Promise<{ credentials: AuthTokens; user: User } | null> {

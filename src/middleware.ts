@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { AuthRepositoryImpl } from "@/infrastructure/repositories/auth.repository";
 import { AuthUseCase } from "./domain/use-cases/auth.use-case";
+import { CookieService } from "@/infrastructure/services/cookie.service";
 
 export async function middleware(request: NextRequest) {
   const tokens = request.cookies.get("auth_tokens");
@@ -23,12 +24,21 @@ export async function middleware(request: NextRequest) {
     try {
       const authRepository = new AuthRepositoryImpl();
       const authUseCase = new AuthUseCase(authRepository);
-      await authUseCase.loginWithCustomToken(tokenFromUrl);
+      const loginResult = await authUseCase.loginWithCustomToken(tokenFromUrl);
 
+      // Create a response with redirect
       const mainUrl = new URL("/", request.url);
-      return NextResponse.redirect(mainUrl);
+      const response = NextResponse.redirect(mainUrl);
+
+      // Get cookie options from the service
+      const cookieOptions = CookieService.getInstance().getServerCookieOptions();
+
+      // Set the cookies
+      response.cookies.set("auth_tokens", JSON.stringify(loginResult.credentials), cookieOptions);
+      response.cookies.set("auth_user", JSON.stringify(loginResult.user), cookieOptions);
+
+      return response;
     } catch (error) {
-      console.error("Failed to login with custom token:", error);
       // If login fails, redirect to login page
       const loginUrl = new URL("/login", request.url);
       return NextResponse.redirect(loginUrl);
@@ -63,6 +73,18 @@ export async function middleware(request: NextRequest) {
           response.cookies.delete("auth_tokens");
           return response;
         }
+
+        // Set the new tokens in the response
+        const response = NextResponse.next();
+
+        // Get cookie options from the service
+        const cookieOptions = CookieService.getInstance().getServerCookieOptions();
+
+        // Set the cookies
+        response.cookies.set("auth_tokens", JSON.stringify(newTokens.credentials), cookieOptions);
+        response.cookies.set("auth_user", JSON.stringify(newTokens.user), cookieOptions);
+
+        return response;
       }
 
       return NextResponse.next();
